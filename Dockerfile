@@ -5,41 +5,49 @@ FROM ghcr.io/linuxserver/baseimage-selkies:ubuntunoble
 # set version label
 ARG BUILD_DATE
 ARG VERSION
-ARG FIREFOX_VERSION
-LABEL build_version="Linuxserver.io version:- ${VERSION} Build-date:- ${BUILD_DATE}"
-LABEL maintainer="thelamer"
+LABEL build_version="version:- ${VERSION} Build-date:- ${BUILD_DATE}"
+LABEL maintainer="vgscq"
 
 # title
-ENV TITLE=Firefox \
+ENV TITLE="Bambu Studio" \
     NO_GAMEPAD=true
 
 RUN \
-  echo "**** add icon ****" && \
-  curl -o \
-    /usr/share/selkies/www/icon.png \
-    https://raw.githubusercontent.com/linuxserver/docker-templates/master/linuxserver.io/img/firefox-logo.png && \
-  echo "**** install packages ****" && \
-  apt-key adv \
-    --keyserver hkp://keyserver.ubuntu.com:80 \
-    --recv-keys 5301FA4FD93244FBC6F6149982BB6851C64F6880 && \
-  echo \
-    "deb https://ppa.launchpadcontent.net/xtradeb/apps/ubuntu noble main" > \
-    /etc/apt/sources.list.d/xtradeb.list && \
+  echo "**** install dependencies ****" && \
   apt-get update && \
   apt-get install -y --no-install-recommends \
-    firefox \
-    ^firefox-locale && \
-  echo "**** default firefox settings ****" && \
-  FIREFOX_SETTING="/usr/lib/firefox/browser/defaults/preferences/firefox.js" && \
-  echo 'pref("datareporting.policy.firstRunURL", "");' > ${FIREFOX_SETTING} && \
-  echo 'pref("datareporting.policy.dataSubmissionEnabled", false);' >> ${FIREFOX_SETTING} && \
-  echo 'pref("datareporting.healthreport.service.enabled", false);' >> ${FIREFOX_SETTING} && \
-  echo 'pref("datareporting.healthreport.uploadEnabled", false);' >> ${FIREFOX_SETTING} && \
-  echo 'pref("trailhead.firstrun.branches", "nofirstrun-empty");' >> ${FIREFOX_SETTING} && \
-  echo 'pref("browser.aboutwelcome.enabled", false);' >> ${FIREFOX_SETTING} && \
-  echo 'pref("security.sandbox.warn_unprivileged_namespaces", false);' >> ${FIREFOX_SETTING} && \
-  printf "Linuxserver.io version: ${VERSION}\nBuild-date: ${BUILD_DATE}" > /build_version && \
+    libgtk-3-0 \
+    libwebkit2gtk-4.1-0 \
+    libgstreamer1.0-0 \
+    libgstreamer-plugins-base1.0-0 \
+    libgstreamer-plugins-bad1.0-0 \
+    gstreamer1.0-plugins-base \
+    gstreamer1.0-plugins-good \
+    libosmesa6 \
+    libgl1 \
+    libglu1-mesa \
+    libsecret-1-0 \
+    libwayland-client0 \
+    libwayland-egl1 \
+    fuse \
+    file && \
+  echo "**** download and install Bambu Studio ****" && \
+  BAMBU_DL_URL=$(curl -sL https://api.github.com/repos/bambulab/BambuStudio/releases/latest \
+    | grep -oP '"browser_download_url":\s*"\K[^"]*ubuntu-24\.04[^"]*\.AppImage' \
+    | head -n 1) && \
+  test -n "${BAMBU_DL_URL}" && \
+  echo "Downloading Bambu Studio from: ${BAMBU_DL_URL}" && \
+  curl -fSL -o /tmp/bambu-studio.AppImage "${BAMBU_DL_URL}" && \
+  chmod +x /tmp/bambu-studio.AppImage && \
+  cd /opt && \
+  /tmp/bambu-studio.AppImage --appimage-extract && \
+  mv squashfs-root bambu-studio && \
+  ln -s /opt/bambu-studio/AppRun /usr/bin/bambu-studio && \
+  echo "**** add icon ****" && \
+  (cp /opt/bambu-studio/resources/images/BambuStudio.ico /usr/share/selkies/www/icon.png || true) && \
+  printf "version: ${VERSION}\nBuild-date: ${BUILD_DATE}" > /build_version && \
   echo "**** cleanup ****" && \
+  rm -f /tmp/bambu-studio.AppImage && \
   apt-get autoclean && \
   rm -rf \
     /config/.cache \
